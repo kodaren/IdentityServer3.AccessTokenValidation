@@ -8,7 +8,7 @@ gci .\source -Recurse "packages.config" |% {
     .\source\.nuget\nuget.exe install $_.FullName -o .\source\packages
 }
 
-Import-Module .\source\packages\psake.4.4.1\tools\psake.psm1
+Import-Module .\source\packages\psake.4.9.0\tools\psake\psake.psm1
 
 if(Test-Path Env:\APPVEYOR_BUILD_NUMBER){
     $buildNumber = [int]$Env:APPVEYOR_BUILD_NUMBER

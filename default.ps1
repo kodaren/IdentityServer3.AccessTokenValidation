@@ -1,3 +1,5 @@
+Framework '4.8'
+
 properties {
 	$base_directory = Resolve-Path . 
 	$src_directory = "$base_directory\source"
@@ -24,7 +26,7 @@ task Clean {
 }
 
 task Compile -depends UpdateVersion {
-	exec { msbuild /nologo /verbosity:q $sln_file /p:Configuration=$target_config /p:TargetFrameworkVersion=v4.5 }
+	exec { msbuild /nologo /verbosity:q $sln_file /p:Configuration=$target_config /p:TargetFrameworkVersion=v4.8 /p:langversion=latest }
 }
 
 task RunTests -depends Compile {
@@ -64,7 +66,7 @@ task ILMerge -depends Compile {
 	}
 
 	New-Item $dist_directory\lib\net45 -Type Directory
-	Invoke-Expression "$ilmerge_path /targetplatform:v4 /internalize:ilmerge.exclude /allowDup /target:library /out:$dist_directory\lib\net45\IdentityServer.v3.AccessTokenValidation.dll $input_dlls"
+	Invoke-Expression "$ilmerge_path /targetplatform:v4 /internalize:ilmerge.exclude /allowDup /target:library /out:$dist_directory\lib\net48\IdentityServer.v3.AccessTokenValidation.dll $input_dlls"
 }
 
 task CreateNuGetPackage -depends Compile {
@@ -85,8 +87,8 @@ task CreateNuGetPackage -depends Compile {
 		$packageVersion = $packageVersion + "-build" + $buildNumber.ToString().PadLeft(5,'0')
 	}
 	
-	New-Item $dist_directory\lib\net45 -Type Directory
-	copy-item $output_directory\IdentityServer3.AccessTokenValidation.* $dist_directory\lib\net45
+	New-Item $dist_directory\lib\net48 -Type Directory
+	copy-item $output_directory\IdentityServer3.AccessTokenValidation.* $dist_directory\lib\net48
 
 	copy-item $src_directory\IdentityServer3.AccessTokenValidation.nuspec $dist_directory
 	exec { . $nuget_path pack $dist_directory\IdentityServer3.AccessTokenValidation.nuspec -BasePath $dist_directory -o $dist_directory -version $packageVersion }
