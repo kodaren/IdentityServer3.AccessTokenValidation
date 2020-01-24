@@ -62,6 +62,9 @@ namespace IdentityServer3.AccessTokenValidation
                     return localBuilder.Build();
 
                 }, LazyThreadSafetyMode.PublicationOnly);
+
+                //_ = _localValidationFunc.Value;
+
             }
 
             if (options.EndpointValidationOptions != null)

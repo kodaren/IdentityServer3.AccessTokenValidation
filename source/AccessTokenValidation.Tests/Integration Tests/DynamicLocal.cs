@@ -1,9 +1,9 @@
-﻿using System;
-using AccessTokenValidation.Tests.Util;
+﻿using AccessTokenValidation.Tests.Util;
 using FluentAssertions;
+using IdentityModel.Client;
 using IdentityServer3.AccessTokenValidation;
+using System;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -11,7 +11,7 @@ namespace AccessTokenValidation.Tests.Integration_Tests
 {
     public class DynamicLocal
     {
-        IdentityServerBearerTokenAuthenticationOptions _options = new IdentityServerBearerTokenAuthenticationOptions
+        private readonly IdentityServerBearerTokenAuthenticationOptions _options = new IdentityServerBearerTokenAuthenticationOptions
         {
             Authority = "https://discodoc",
             ValidationMode = ValidationMode.Local,
@@ -21,6 +21,7 @@ namespace AccessTokenValidation.Tests.Integration_Tests
         [Fact]
         public async Task WhenDelayLoadMetadataIsTrue_MetadataRetrievalIsRetriedAfterFailure()
         {
+            Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
             _options.BackchannelHttpHandler = new FailureDiscoveryEndpointHandler();
 
             var client = PipelineFactory.CreateHttpClient(_options);
@@ -29,10 +30,12 @@ namespace AccessTokenValidation.Tests.Integration_Tests
             client.SetBearerToken(token);
 
             Func<Task> action = async () => await client.GetAsync("http://test");
+            
+            
             action.
-                ShouldThrow<InvalidOperationException>().
+                Should().Throw<InvalidOperationException>().
                 And.
-                Message.Should().Contain("IDX10803"); // IDX10803: Unable to create to obtain configuration from: https://discodoc
+                Message.Should().Contain("IDX20803"); // IDX10803: Unable to create to obtain configuration from: https://discodoc
 
             _options.BackchannelHttpHandler = new DiscoveryEndpointHandler();
 

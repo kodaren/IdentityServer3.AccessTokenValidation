@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-using IdentityModel.Extensions;
+//using IdentityModel.Extensions;
+using IdentityModel;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Infrastructure;
@@ -87,7 +88,7 @@ namespace IdentityServer3.AccessTokenValidation
                 { "token", context.Token }
             };
 
-            HttpResponseMessage response = null;
+            HttpResponseMessage response;
             try
             {
                 response = await _client.PostAsync(_tokenValidationEndpoint, new FormUrlEncodedContent(form));

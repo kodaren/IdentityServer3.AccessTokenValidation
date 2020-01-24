@@ -15,12 +15,12 @@
  */
 
 using IdentityServer3.AccessTokenValidation;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Owin.Extensions;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security.Jwt;
 using Microsoft.Owin.Security.OAuth;
 using System;
-using System.IdentityModel.Tokens;
 using System.Linq;
 using System.Threading;
 
@@ -44,7 +44,6 @@ namespace Owin
 
             var loggerFactory = app.GetLoggerFactory();
             var middlewareOptions = new IdentityServerOAuthBearerAuthenticationOptions();
-
             switch (options.ValidationMode)
             {
                 case ValidationMode.Local:
@@ -67,12 +66,12 @@ namespace Owin
 
                 if (middlewareOptions.LocalValidationOptions != null)
                 {
-                    var ignore = middlewareOptions.LocalValidationOptions.Value;
+                    _ = middlewareOptions.LocalValidationOptions.Value;
                 }
 
                 if (middlewareOptions.EndpointValidationOptions != null)
                 {
-                    var ignore = middlewareOptions.EndpointValidationOptions.Value;
+                    _ = middlewareOptions.EndpointValidationOptions.Value;
                 }
             }
 
@@ -143,6 +142,30 @@ namespace Owin
             {
                 JwtFormat tokenFormat = null;
 
+                // Update optional token validation parameters if available
+                var tokenValidationParameters = options.TokenValidationParameters;
+                if (tokenValidationParameters != null)
+                {
+                    var nameClaimType = tokenValidationParameters.NameClaimType;
+                    if (nameClaimType != null)
+                    {
+                        options.NameClaimType = nameClaimType;
+                    }
+                    else
+                    {
+                        tokenValidationParameters.NameClaimType = options.NameClaimType;
+                    }
+                    var roleClaimType = tokenValidationParameters.RoleClaimType;
+                    if (roleClaimType != null)
+                    {
+                        options.RoleClaimType = roleClaimType;
+                    }
+                    else
+                    {
+                        tokenValidationParameters.RoleClaimType = options.RoleClaimType;
+                    }
+                }
+
                 // use static configuration
                 if (!string.IsNullOrWhiteSpace(options.IssuerName) &&
                     options.SigningCertificate != null)
@@ -150,16 +173,14 @@ namespace Owin
                     var audience = options.IssuerName.EnsureTrailingSlash();
                     audience += "resources";
 
-                    var valParams = new TokenValidationParameters
+                    var valParams = tokenValidationParameters ?? new TokenValidationParameters
                     {
                         ValidIssuer = options.IssuerName,
                         ValidAudience = audience,
-                        IssuerSigningToken = new X509SecurityToken(options.SigningCertificate),
-
+                        IssuerSigningKey = new X509SecurityKey(options.SigningCertificate),
                         NameClaimType = options.NameClaimType,
                         RoleClaimType = options.RoleClaimType,
                     };
-
                     tokenFormat = new JwtFormat(valParams);
                 }
                 else
@@ -173,27 +194,28 @@ namespace Owin
                     var discoveryEndpoint = options.Authority.EnsureTrailingSlash();
                     discoveryEndpoint += ".well-known/openid-configuration";
 
-                    var issuerProvider = new DiscoveryDocumentIssuerSecurityTokenProvider(
+                    var issuerProvider = new DiscoveryDocumentIssuerSecurityKeyProvider(
                         discoveryEndpoint,
                         options,
                         loggerFactory);
 
-                    var valParams = new TokenValidationParameters
+                    var valParams = tokenValidationParameters ?? new TokenValidationParameters
                     {
                         ValidAudience = issuerProvider.Audience,
                         NameClaimType = options.NameClaimType,
                         RoleClaimType = options.RoleClaimType
                     };
 
+                    
                     if (options.IssuerSigningKeyResolver != null)
                     {
                         valParams.IssuerSigningKeyResolver = options.IssuerSigningKeyResolver;
                     }
                     else
                     {
-                        valParams.IssuerSigningKeyResolver = ResolveRsaKeys;
+                        //valParams.IssuerSigningKeyResolver = ResolveRsaKey;
                     }
-
+                    var aud = issuerProvider.Audience;
                     tokenFormat = new JwtFormat(valParams, issuerProvider);
                 }
 
@@ -211,29 +233,5 @@ namespace Owin
             }, LazyThreadSafetyMode.PublicationOnly);
         }
 
-        private static SecurityKey ResolveRsaKeys(
-            string token, 
-            SecurityToken securityToken, 
-            SecurityKeyIdentifier keyIdentifier, 
-            TokenValidationParameters validationParameters)
-        {
-            string id = null;
-            foreach (var keyId in keyIdentifier)
-            {
-                var nk = keyId as NamedKeySecurityKeyIdentifierClause;
-                if (nk != null)
-                {
-                    id = nk.Id;
-                    break;
-                }
-            }
-
-            if (id == null) return null;
-
-            var issuerToken = validationParameters.IssuerSigningTokens.FirstOrDefault(it => it.Id == id);
-            if (issuerToken == null) return null;
-
-            return issuerToken.SecurityKeys.FirstOrDefault();
-        }
     }
 }

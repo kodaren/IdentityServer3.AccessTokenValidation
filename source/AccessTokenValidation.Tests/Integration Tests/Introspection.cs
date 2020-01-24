@@ -1,8 +1,8 @@
 ﻿using AccessTokenValidation.Tests.Util;
 using FluentAssertions;
+using IdentityModel.Client;
 using IdentityServer3.AccessTokenValidation;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -10,7 +10,7 @@ namespace AccessTokenValidation.Tests.Integration_Tests
 {
     public class Introspection
     {
-        IdentityServerBearerTokenAuthenticationOptions _options = new IdentityServerBearerTokenAuthenticationOptions
+        private readonly IdentityServerBearerTokenAuthenticationOptions _options = new IdentityServerBearerTokenAuthenticationOptions
         {
             Authority = "https://server/with/introspection",
             ValidationMode = ValidationMode.ValidationEndpoint,

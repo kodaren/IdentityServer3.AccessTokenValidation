@@ -1,10 +1,9 @@
 ﻿using AccessTokenValidation.Tests.Util;
 using FluentAssertions;
+using IdentityModel.Client;
 using IdentityServer3.AccessTokenValidation;
 using Owin;
 using System;
-using System.Net;
-using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Xunit;
@@ -13,7 +12,7 @@ namespace AccessTokenValidation.Tests.Integration_Tests
 {
     public class ResponseHeaders
     {
-        IdentityServerBearerTokenAuthenticationOptions _options = new IdentityServerBearerTokenAuthenticationOptions
+        private readonly IdentityServerBearerTokenAuthenticationOptions _options = new IdentityServerBearerTokenAuthenticationOptions
         {
             IssuerName = TokenFactory.DefaultIssuer,
             SigningCertificate = new X509Certificate2(Convert.FromBase64String(TokenFactory.DefaultPublicKey)),
@@ -28,9 +27,14 @@ namespace AccessTokenValidation.Tests.Integration_Tests
             {
                 x.Use(async (context, next) =>
                 {
-                    context.Response.Headers.Add("Access-Control-Allow-Origin", new[] { "ACAO Value" });
-                    context.Response.Headers.Add("Access-Control-Allow-Method", new[] { "ACAM Value" });
-                    context.Response.Headers.Add("Access-Control-Allow-Headers", new[] { "ACAH Value" });
+                    var hdr = context.Response.Headers;
+                    //hdr.Remove("Access-Control-Allow-Origin");
+                    //hdr.Remove("Access-Control-Allow-Method");
+                    //hdr.Remove("Access-Control-Allow-Headers");
+
+                    hdr.Add("Access-Control-Allow-Origin", new[] { "ACAO Value" });
+                    hdr.Add("Access-Control-Allow-Method", new[] { "ACAM Value" });
+                    hdr.Add("Access-Control-Allow-Headers", new[] { "ACAH Value" });
 
                     await next();
                 });

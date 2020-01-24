@@ -15,26 +15,27 @@
  */
 
 using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Owin.Logging;
 using Microsoft.Owin.Security.Jwt;
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Tokens;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading;
 
 namespace IdentityServer3.AccessTokenValidation
 {
-    internal class DiscoveryDocumentIssuerSecurityTokenProvider : IIssuerSecurityTokenProvider
+    internal class DiscoveryDocumentIssuerSecurityKeyProvider : IIssuerSecurityKeyProvider
     {
         private readonly ReaderWriterLockSlim _synclock = new ReaderWriterLockSlim();
         private readonly ConfigurationManager<OpenIdConnectConfiguration> _configurationManager;
         private readonly ILogger _logger;
         private string _issuer;
-        private IEnumerable<SecurityToken> _tokens;
+        private IEnumerable<SecurityKey> _securityKeys;
 
-        public DiscoveryDocumentIssuerSecurityTokenProvider(string discoveryEndpoint, IdentityServerBearerTokenAuthenticationOptions options, ILoggerFactory loggerFactory)
+        public DiscoveryDocumentIssuerSecurityKeyProvider(string discoveryEndpoint, IdentityServerBearerTokenAuthenticationOptions options, ILoggerFactory loggerFactory)
         {
             _logger = loggerFactory.Create(this.GetType().FullName);
 
@@ -43,15 +44,14 @@ namespace IdentityServer3.AccessTokenValidation
             if (options.BackchannelCertificateValidator != null)
             {
                 // Set the cert validate callback
-                var webRequestHandler = handler as WebRequestHandler;
-                if (webRequestHandler == null)
+                if (!(handler is WebRequestHandler webRequestHandler))
                 {
                     throw new InvalidOperationException("The back channel handler must derive from WebRequestHandler in order to use a certificate validator");
                 }
                 webRequestHandler.ServerCertificateValidationCallback = options.BackchannelCertificateValidator.Validate;
             }
 
-            _configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(discoveryEndpoint, new HttpClient(handler))
+            _configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(discoveryEndpoint, new OpenIdConnectConfigurationRetriever(),  new HttpClient(handler))
             {
                 AutomaticRefreshInterval = options.AutomaticRefreshInterval
             };
@@ -112,7 +112,7 @@ namespace IdentityServer3.AccessTokenValidation
         /// <value>
         /// All known security tokens.
         /// </value>
-        public IEnumerable<SecurityToken> SecurityTokens
+        public IEnumerable<SecurityKey> SecurityKeys
         {
             get
             {
@@ -120,7 +120,7 @@ namespace IdentityServer3.AccessTokenValidation
                 _synclock.EnterReadLock();
                 try
                 {
-                    return _tokens;
+                    return _securityKeys;
                 }
                 finally
                 {
@@ -128,6 +128,7 @@ namespace IdentityServer3.AccessTokenValidation
                 }
             }
         }
+
 
         private void RetrieveMetadata()
         {
@@ -142,21 +143,22 @@ namespace IdentityServer3.AccessTokenValidation
                     throw new InvalidOperationException("Discovery document has no configured signing key. aborting.");
                 }
 
-                var tokens = new List<SecurityToken>();
+                var keys = new List<SecurityKey>();
                 foreach (var key in result.JsonWebKeySet.Keys)
                 {
                     var rsa = RSA.Create();
+                    
                     rsa.ImportParameters(new RSAParameters
                     {
                         Exponent = Base64UrlEncoder.DecodeBytes(key.E),
                         Modulus = Base64UrlEncoder.DecodeBytes(key.N)
                     });
 
-                    tokens.Add(new RsaSecurityToken(rsa, key.Kid));
+                    keys.Add(new RsaSecurityKey(rsa));
                 }
 
                 _issuer = result.Issuer;
-                _tokens = tokens;
+                _securityKeys = keys;
             }
             catch (Exception ex)
             {

@@ -63,17 +63,32 @@ namespace IdentityServer3.AccessTokenValidation
 
             if (!string.IsNullOrEmpty(options.ClientId))
             {
-                _client = new IntrospectionClient(
-                    introspectionEndpoint, 
-                    options.ClientId, 
-                    options.ClientSecret,
-                    handler);
+
+                _client = new IntrospectionClient(() => new HttpMessageInvoker(handler),
+                new IntrospectionClientOptions
+                {
+                    Address = introspectionEndpoint,
+                    ClientId = options.ClientId,
+                    ClientSecret = options.ClientSecret
+                });
+
+                //_client = new IntrospectionClient(
+                //    introspectionEndpoint, 
+                //    options.ClientId, 
+                //    options.ClientSecret,
+                //    handler);
             }
             else
             {
-                _client = new IntrospectionClient(
-                    introspectionEndpoint,
-                    innerHttpMessageHandler: handler);
+                _client = new IntrospectionClient(() => new HttpMessageInvoker(handler),
+                new IntrospectionClientOptions
+                {
+                    Address = introspectionEndpoint
+                });
+
+                //_client = new IntrospectionClient(
+                //    introspectionEndpoint,
+                //    innerHttpMessageHandler: handler);
             }
 
             _options = options;
@@ -91,10 +106,12 @@ namespace IdentityServer3.AccessTokenValidation
                 }
             }
 
-            IntrospectionResponse response;
+            TokenIntrospectionResponse response;
             try
             {
-                response = await _client.SendAsync(new IntrospectionRequest { Token = context.Token });
+                response = await _client.Introspect(context.Token);
+
+                //response = await _client.SendAsync(new TokenIntrospectionRequest { Token = context.Token });
                 if (response.IsError)
                 {
                     _logger.WriteError("Error returned from introspection endpoint: " + response.Error);
@@ -115,12 +132,17 @@ namespace IdentityServer3.AccessTokenValidation
             var claims = new List<Claim>();
             foreach (var claim in response.Claims)
             {
-                if (!string.Equals(claim.Item1, "active", StringComparison.Ordinal))
+                if (!string.Equals(claim.Type, "active", StringComparison.Ordinal))
                 {
-                    claims.Add(new Claim(claim.Item1, claim.Item2));
+                    claims.Add(new Claim(claim.Type, claim.Value));
                 }
+
+                //if (!string.Equals(claim.Item1, "active", StringComparison.Ordinal))
+                //{
+                //    claims.Add(new Claim(claim, claim.Item2));
+                //}
             }
-            
+
             if (_options.EnableValidationResultCache)
             {
                 await _options.ValidationResultCache.AddAsync(context.Token, claims);
