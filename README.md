@@ -8,6 +8,30 @@ OWIN Middleware to validate access tokens from IdentityServer v3.
 
 You can either validate the tokens locally (JWTs only) or use the IdentityServer's access token validation endpoint (JWTs and reference tokens).
 
+This solution has been upgraded to .Net Framework 4.8, IdentityModel 4, Microsoft.IdentityModel 5.6 and Micorosft.OWIN 4.1. 
+
+You can now also pass in an optional TokenValidationParameters object to the OWIN Startup. We needed this so we could change the NameClaimType and RoleClaimType parameters for Microsoft.Identity, so that the name and roles was set properly on the Identity object.
+
+New example:
+```csharp
+app.UseIdentityServerBearerTokenAuthentication(new IdentityServerBearerTokenAuthenticationOptions
+    {
+        Authority = "https://identity.identityserver.io",
+        ClientId = "some-client",
+        ClientSecret = "secret",
+        TokenValidationParameters = new TokenValidationParameters()
+        {
+            ValidAudiences = new[] { "api1" },
+            ValidateLifetime = true,
+            ValidateAudience = true,
+            NameClaimType = "name",
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role
+        }
+
+    });
+```
+
+Original examples:
 ```csharp
 app.UseIdentityServerBearerTokenAuthentication(new IdentityServerBearerTokenAuthenticationOptions
     {
